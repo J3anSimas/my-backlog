@@ -12,7 +12,7 @@ import (
 
 func newService() (*backlog.Service, *backlogtest.FakeRepository) {
 	repo := backlogtest.NewFakeRepository()
-	return backlog.NewService(repo), repo
+	return backlog.NewService(repo, backlog.DefaultValidator()), repo
 }
 
 // --- Happy path ---
@@ -88,6 +88,23 @@ func TestService_Create_TitleExceedsMaxLength_ReturnsError(t *testing.T) {
 
 // --- Edge cases: descrição ---
 
+func TestService_Create_EmptyDescription_ReturnsInputError(t *testing.T) {
+	svc, _ := newService()
+
+	_, err := svc.Create(context.Background(), "Título válido", "")
+
+	var inputErr *backlog.InputError
+	if !errors.As(err, &inputErr) {
+		t.Fatalf("esperado *backlog.InputError, obtido %T: %v", err, err)
+	}
+	if inputErr.Field != "description" {
+		t.Errorf("esperado Field=%q, obtido %q", "description", inputErr.Field)
+	}
+	if inputErr.Kind != backlog.KindInvalid {
+		t.Errorf("esperado Kind=KindInvalid, obtido %v", inputErr.Kind)
+	}
+}
+
 func TestService_Create_EmptyDescription_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
@@ -110,6 +127,23 @@ func TestService_Create_DescriptionExceedsMaxLength_ReturnsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "description") {
 		t.Errorf("mensagem de erro deve mencionar 'description', obtido: %q", err.Error())
+	}
+}
+
+func TestService_Create_EmptyTitle_ReturnsInputError(t *testing.T) {
+	svc, _ := newService()
+
+	_, err := svc.Create(context.Background(), "", "Descrição válida")
+
+	var inputErr *backlog.InputError
+	if !errors.As(err, &inputErr) {
+		t.Fatalf("esperado *backlog.InputError, obtido %T: %v", err, err)
+	}
+	if inputErr.Field != "title" {
+		t.Errorf("esperado Field=%q, obtido %q", "title", inputErr.Field)
+	}
+	if inputErr.Kind != backlog.KindInvalid {
+		t.Errorf("esperado Kind=KindInvalid, obtido %v", inputErr.Kind)
 	}
 }
 
