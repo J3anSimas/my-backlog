@@ -21,10 +21,24 @@ var tmpl = template.Must(template.ParseFS(templateFS, "templates/*.html"))
 // buildMux monta o ServeMux com todas as rotas da aplicação.
 func buildMux(svc *user.Service, store *session.Store) *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", getRoot(store))
 	mux.HandleFunc("GET /register", getRegister)
 	mux.HandleFunc("POST /register", postRegister(svc, store))
 	mux.HandleFunc("GET /home", getHome(store))
 	return mux
+}
+
+func getRoot(store *session.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("sid")
+		if err == nil {
+			if _, ok := store.Get(cookie.Value); ok {
+				http.Redirect(w, r, "/home", http.StatusSeeOther)
+				return
+			}
+		}
+		http.Redirect(w, r, "/register", http.StatusSeeOther)
+	}
 }
 
 func getRegister(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,40 @@ func newTestServer() (*http.ServeMux, *usertest.FakeRepository, *session.Store) 
 	return mux, repo, store
 }
 
+// --- GET / ---
+
+func TestGetRoot_WithoutSession_RedirectsToRegister(t *testing.T) {
+	mux, _, _ := newTestServer()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("esperado 303, obtido %d", rec.Code)
+	}
+	if rec.Header().Get("Location") != "/register" {
+		t.Errorf("esperado redirect para /register, obtido %q", rec.Header().Get("Location"))
+	}
+}
+
+func TestGetRoot_WithValidSession_RedirectsToHome(t *testing.T) {
+	mux, _, store := newTestServer()
+	sid := store.New("user-1")
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Errorf("esperado 303, obtido %d", rec.Code)
+	}
+	if rec.Header().Get("Location") != "/home" {
+		t.Errorf("esperado redirect para /home, obtido %q", rec.Header().Get("Location"))
+	}
+}
+
 // --- GET /register ---
 
 func TestGetRegister_Returns200WithForm(t *testing.T) {

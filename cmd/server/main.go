@@ -32,7 +32,7 @@ func main() {
 
 	addr := os.Getenv("ADDR")
 	if addr == "" {
-		addr = ":8080"
+		addr = ":8081"
 	}
 
 	mux := buildMux(userSvc, sessionStore)
