@@ -28,13 +28,15 @@ type fakeConn struct{}
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	return &fakeStmt{query: query}, nil
 }
-func (c *fakeConn) Close() error                        { return nil }
-func (c *fakeConn) Begin() (driver.Tx, error)           { return nil, errors.New("fakedb: transactions not supported") }
+func (c *fakeConn) Close() error { return nil }
+func (c *fakeConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("fakedb: transactions not supported")
+}
 
 type fakeStmt struct{ query string }
 
-func (s *fakeStmt) Close() error   { return nil }
-func (s *fakeStmt) NumInput() int  { return -1 }
+func (s *fakeStmt) Close() error  { return nil }
+func (s *fakeStmt) NumInput() int { return -1 }
 
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) { return fakeResult{}, nil }
 
@@ -68,9 +70,9 @@ func (r *singleInt64Row) Next(dest []driver.Value) error {
 
 type emptyRows struct{}
 
-func (r *emptyRows) Columns() []string                  { return nil }
-func (r *emptyRows) Close() error                       { return nil }
-func (r *emptyRows) Next(dest []driver.Value) error     { return io.EOF }
+func (r *emptyRows) Columns() []string              { return nil }
+func (r *emptyRows) Close() error                   { return nil }
+func (r *emptyRows) Next(dest []driver.Value) error { return io.EOF }
 
 // testOpener abre uma conexão fake via fakedb, sem Oracle real.
 type testOpener struct{}
