@@ -24,6 +24,8 @@ func buildMux(svc *user.Service, store *session.Store) *http.ServeMux {
 	mux.HandleFunc("GET /{$}", getRoot(store))
 	mux.HandleFunc("GET /register", getRegister)
 	mux.HandleFunc("POST /register", postRegister(svc, store))
+	mux.HandleFunc("GET /login", getLogin(store))
+	mux.HandleFunc("POST /login", postLogin(svc, store))
 	mux.HandleFunc("GET /home", getHome(store))
 	return mux
 }
@@ -37,7 +39,7 @@ func getRoot(store *session.Store) http.HandlerFunc {
 				return
 			}
 		}
-		http.Redirect(w, r, "/register", http.StatusSeeOther)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 	}
 }
 
@@ -77,15 +79,56 @@ func postRegister(svc *user.Service, store *session.Store) http.HandlerFunc {
 	}
 }
 
+func getLogin(store *session.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("sid")
+		if err == nil {
+			if _, ok := store.Get(cookie.Value); ok {
+				http.Redirect(w, r, "/home", http.StatusSeeOther)
+				return
+			}
+		}
+		if err := tmpl.ExecuteTemplate(w, "login.html", nil); err != nil {
+			log.Printf("login template: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}
+	}
+}
+
+func postLogin(svc *user.Service, store *session.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		u, err := svc.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
+		if err != nil {
+			writeLoginError(w, err)
+			return
+		}
+
+		sid := store.New(u.ID)
+		http.SetCookie(w, &http.Cookie{
+			Name:     "sid",
+			Value:    sid,
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+		http.Redirect(w, r, "/home", http.StatusSeeOther)
+	}
+}
+
 func getHome(store *session.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("sid")
 		if err != nil || cookie.Value == "" {
-			http.Redirect(w, r, "/register", http.StatusSeeOther)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 		if _, ok := store.Get(cookie.Value); !ok {
-			http.Redirect(w, r, "/register", http.StatusSeeOther)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 		if err := tmpl.ExecuteTemplate(w, "home.html", nil); err != nil {
@@ -98,6 +141,20 @@ func getHome(store *session.Store) http.HandlerFunc {
 type errorResponse struct {
 	Field   string `json:"field,omitempty"`
 	Message string `json:"message"`
+}
+
+func writeLoginError(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var inputErr *apperrors.InputError
+	if errors.As(err, &inputErr) && inputErr.Kind == apperrors.KindUnauthorized {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(errorResponse{Message: inputErr.Message})
+		return
+	}
+
+	w.WriteHeader(http.StatusInternalServerError)
+	json.NewEncoder(w).Encode(errorResponse{Message: "internal error"})
 }
 
 func writeRegisterError(w http.ResponseWriter, err error) {

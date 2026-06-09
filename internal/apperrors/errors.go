@@ -9,9 +9,10 @@ import "fmt"
 type InputKind int
 
 const (
-	KindInvalid  InputKind = iota // HTTP 400
-	KindNotFound                  // HTTP 404
-	KindConflict                  // HTTP 409
+	KindInvalid      InputKind = iota // HTTP 400
+	KindNotFound                      // HTTP 404
+	KindConflict                      // HTTP 409
+	KindUnauthorized                  // HTTP 401
 )
 
 // InputError é retornado quando os dados do chamador são inválidos.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"my-backlog/internal/apperrors"
 	"my-backlog/internal/user"
 )
 
@@ -46,6 +47,25 @@ func (f *FakeRepository) EmailExists(_ context.Context, email string) (bool, err
 		}
 	}
 	return false, nil
+}
+
+// FindByEmail implementa user.Repository.
+func (f *FakeRepository) FindByEmail(_ context.Context, email string) (user.User, error) {
+	if f.failOnce != nil {
+		err := f.failOnce
+		f.failOnce = nil
+		return user.User{}, err
+	}
+	for _, u := range f.saved {
+		if u.Email == email {
+			return u, nil
+		}
+	}
+	return user.User{}, &apperrors.InputError{
+		Kind:    apperrors.KindNotFound,
+		Field:   "email",
+		Message: fmt.Sprintf("email %q not found", email),
+	}
 }
 
 // Saved retorna uma cópia dos usuários persistidos até o momento.

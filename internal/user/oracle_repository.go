@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"my-backlog/internal/apperrors"
@@ -50,6 +51,26 @@ func newUUID() (string, error) {
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
+// FindByEmail retorna o User com o e-mail informado.
+// Retorna InputError{KindNotFound} se não existir.
+func (r *OracleRepository) FindByEmail(ctx context.Context, email string) (User, error) {
+	var u User
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, name, email, password_hash FROM mbl_users WHERE email = :1`, email,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, &apperrors.InputError{
+			Kind:    apperrors.KindNotFound,
+			Field:   "email",
+			Message: fmt.Sprintf("email %q not found", email),
+		}
+	}
+	if err != nil {
+		return User{}, &apperrors.InfraError{Op: fmt.Sprintf("find-by-email (email=%q)", email), Cause: err}
+	}
+	return u, nil
 }
 
 // EmailExists retorna true se já existe um usuário com o e-mail informado.
