@@ -132,7 +132,7 @@ func Connect(opts ...ConnectOption) (*sql.DB, error) {
 	migrateCtx, migrateCancel := context.WithTimeout(context.Background(), o.migrateTimeout)
 	defer migrateCancel()
 
-	if err := NewMigrator(db, migrations).Up(migrateCtx); err != nil {
+	if err := NewMigrator(NewOracleMigrationStore(db), migrations).Up(migrateCtx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("applying migrations: %w", err)
 	}

@@ -2,8 +2,8 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
@@ -13,6 +13,28 @@ import (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
+
+// ErrDDLAppliedUntracked is returned by MigrationStore.Apply when DDL committed
+// successfully but the version record could not be persisted, leaving the schema
+// in an inconsistent state that requires manual intervention.
+var ErrDDLAppliedUntracked = errors.New("DDL committed but version record failed")
+
+// MigrationStore abstracts the persistence layer used by Migrator.
+// Implement this interface to swap Oracle for a fake in unit tests.
+//
+// Example fake:
+//
+//	type noopStore struct{}
+//	func (noopStore) EnsureTracking(_ context.Context) error              { return nil }
+//	func (noopStore) AppliedVersions(_ context.Context) (map[int]bool, error) { return map[int]bool{}, nil }
+//	func (noopStore) Apply(_ context.Context, _ Migration) error          { return nil }
+type MigrationStore interface {
+	EnsureTracking(ctx context.Context) error
+	AppliedVersions(ctx context.Context) (map[int]bool, error)
+	// Apply records and executes a single migration.
+	// Must return ErrDDLAppliedUntracked when DDL committed but the version record failed.
+	Apply(ctx context.Context, m Migration) error
+}
 
 // Migration representa um arquivo SQL versionado a ser aplicado uma única vez.
 type Migration struct {
@@ -26,16 +48,16 @@ type Migration struct {
 // Exemplo:
 //
 //	migrations, _ := database.LoadMigrations()
-//	m := database.NewMigrator(db, migrations)
+//	m := database.NewMigrator(database.NewOracleMigrationStore(db), migrations)
 //	err := m.Up(ctx)
 type Migrator struct {
-	db         *sql.DB
+	store      MigrationStore
 	migrations []Migration
 }
 
-// NewMigrator cria um Migrator com o banco e a lista de migrations injetados.
-func NewMigrator(db *sql.DB, migrations []Migration) *Migrator {
-	return &Migrator{db: db, migrations: migrations}
+// NewMigrator cria um Migrator com o store e a lista de migrations injetados.
+func NewMigrator(store MigrationStore, migrations []Migration) *Migrator {
+	return &Migrator{store: store, migrations: migrations}
 }
 
 // LoadMigrations lê os arquivos SQL embarcados em migrations/*.sql e os retorna ordenados por versão.
@@ -73,15 +95,15 @@ func LoadMigrations() ([]Migration, error) {
 
 // Up cria a tabela de controle se necessário e aplica todas as migrations pendentes.
 func (m *Migrator) Up(ctx context.Context) error {
-	if err := m.ensureMigrationsTable(ctx); err != nil {
+	if err := m.store.EnsureTracking(ctx); err != nil {
 		return err
 	}
-	applied, err := m.appliedVersions(ctx)
+	applied, err := m.store.AppliedVersions(ctx)
 	if err != nil {
 		return err
 	}
 	for _, mg := range m.pendingMigrations(applied) {
-		if err := m.apply(ctx, mg); err != nil {
+		if err := m.store.Apply(ctx, mg); err != nil {
 			return fmt.Errorf("applying migration %d (%s): %w", mg.Version, mg.Name, err)
 		}
 	}
@@ -97,62 +119,6 @@ func (m *Migrator) pendingMigrations(applied map[int]bool) []Migration {
 		}
 	}
 	return pending
-}
-
-func (m *Migrator) ensureMigrationsTable(ctx context.Context) error {
-	var count int
-	err := m.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM user_tables WHERE table_name = 'SCHEMA_MIGRATIONS'",
-	).Scan(&count)
-	if err != nil {
-		return fmt.Errorf("checking schema_migrations table: %w", err)
-	}
-	if count > 0 {
-		return nil
-	}
-	_, err = m.db.ExecContext(ctx, `
-		CREATE TABLE schema_migrations (
-			version    NUMBER        NOT NULL,
-			name       VARCHAR2(255) NOT NULL,
-			applied_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			CONSTRAINT pk_schema_migrations PRIMARY KEY (version)
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("creating schema_migrations table: %w", err)
-	}
-	return nil
-}
-
-func (m *Migrator) appliedVersions(ctx context.Context) (map[int]bool, error) {
-	rows, err := m.db.QueryContext(ctx, "SELECT version FROM schema_migrations")
-	if err != nil {
-		return nil, fmt.Errorf("querying applied migrations: %w", err)
-	}
-	defer rows.Close()
-
-	applied := make(map[int]bool)
-	for rows.Next() {
-		var v int
-		if err := rows.Scan(&v); err != nil {
-			return nil, fmt.Errorf("scanning migration version: %w", err)
-		}
-		applied[v] = true
-	}
-	return applied, rows.Err()
-}
-
-// apply executa o SQL da migration e registra a versão aplicada.
-// DDL Oracle realiza commit implícito, por isso o registro é feito logo após.
-func (m *Migrator) apply(ctx context.Context, mg Migration) error {
-	if _, err := m.db.ExecContext(ctx, mg.SQL); err != nil {
-		return fmt.Errorf("executing sql: %w", err)
-	}
-	_, err := m.db.ExecContext(ctx,
-		"INSERT INTO schema_migrations (version, name) VALUES (:1, :2)",
-		mg.Version, mg.Name,
-	)
-	return err
 }
 
 // parseMigrationFilename extrai versão e nome de um arquivo no formato NNNN_nome.sql.
