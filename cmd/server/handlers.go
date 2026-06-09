@@ -18,26 +18,17 @@ var tmpl = template.Must(template.ParseFS(templateFS, "templates/*.html"))
 // buildMux monta o ServeMux com todas as rotas da aplicação.
 func buildMux(svc *user.Service, store session.Sessions) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", getRoot(store))
+	mux.Handle("GET /{$}", RedirectIfAuth(store, http.HandlerFunc(getRoot)))
 	mux.HandleFunc("GET /register", getRegister)
 	mux.HandleFunc("POST /register", postRegister(svc, store))
-	mux.HandleFunc("GET /login", getLogin(store))
+	mux.Handle("GET /login", RedirectIfAuth(store, http.HandlerFunc(getLogin)))
 	mux.HandleFunc("POST /login", postLogin(svc, store))
-	mux.HandleFunc("GET /home", getHome(store))
+	mux.Handle("GET /home", RequireAuth(store, http.HandlerFunc(getHome)))
 	return mux
 }
 
-func getRoot(store session.Sessions) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("sid")
-		if err == nil {
-			if _, ok := store.Get(cookie.Value); ok {
-				http.Redirect(w, r, "/home", http.StatusSeeOther)
-				return
-			}
-		}
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-	}
+func getRoot(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func getRegister(w http.ResponseWriter, r *http.Request) {
@@ -76,19 +67,10 @@ func postRegister(svc *user.Service, store session.Sessions) http.HandlerFunc {
 	}
 }
 
-func getLogin(store session.Sessions) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("sid")
-		if err == nil {
-			if _, ok := store.Get(cookie.Value); ok {
-				http.Redirect(w, r, "/home", http.StatusSeeOther)
-				return
-			}
-		}
-		if err := tmpl.ExecuteTemplate(w, "login.html", nil); err != nil {
-			log.Printf("login template: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}
+func getLogin(w http.ResponseWriter, r *http.Request) {
+	if err := tmpl.ExecuteTemplate(w, "login.html", nil); err != nil {
+		log.Printf("login template: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }
 
@@ -117,21 +99,10 @@ func postLogin(svc *user.Service, store session.Sessions) http.HandlerFunc {
 	}
 }
 
-func getHome(store session.Sessions) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("sid")
-		if err != nil || cookie.Value == "" {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		if _, ok := store.Get(cookie.Value); !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		if err := tmpl.ExecuteTemplate(w, "home.html", nil); err != nil {
-			log.Printf("home template: %v", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}
+func getHome(w http.ResponseWriter, r *http.Request) {
+	if err := tmpl.ExecuteTemplate(w, "home.html", nil); err != nil {
+		log.Printf("home template: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }
 
