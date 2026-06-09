@@ -1,4 +1,4 @@
-package database
+package database_test
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"my-backlog/internal/backlog"
+	"my-backlog/internal/database"
 )
 
 func TestSchemaConstraintsMatchGoConstants(t *testing.T) {
@@ -18,7 +19,7 @@ func TestSchemaConstraintsMatchGoConstants(t *testing.T) {
 
 func mustReadMigration(t *testing.T, filename string) string {
 	t.Helper()
-	content, err := fs.ReadFile(migrationsFS, "migrations/"+filename)
+	content, err := fs.ReadFile(database.MigrationsFS, "migrations/"+filename)
 	if err != nil {
 		t.Fatalf("lendo migration %q: %v", filename, err)
 	}

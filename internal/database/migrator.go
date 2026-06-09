@@ -12,7 +12,7 @@ import (
 )
 
 //go:embed migrations/*.sql
-var migrationsFS embed.FS
+var MigrationsFS embed.FS
 
 // ErrDDLAppliedUntracked is returned by MigrationStore.Apply when DDL committed
 // successfully but the version record could not be persisted, leaving the schema
@@ -62,7 +62,7 @@ func NewMigrator(store MigrationStore, migrations []Migration) *Migrator {
 
 // LoadMigrations lê os arquivos SQL embarcados em migrations/*.sql e os retorna ordenados por versão.
 func LoadMigrations() ([]Migration, error) {
-	entries, err := fs.ReadDir(migrationsFS, "migrations")
+	entries, err := fs.ReadDir(MigrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("reading embedded migrations: %w", err)
 	}
@@ -76,7 +76,7 @@ func LoadMigrations() ([]Migration, error) {
 		if err != nil {
 			return nil, err
 		}
-		content, err := fs.ReadFile(migrationsFS, "migrations/"+entry.Name())
+		content, err := fs.ReadFile(MigrationsFS, "migrations/"+entry.Name())
 		if err != nil {
 			return nil, fmt.Errorf("reading migration file %s: %w", entry.Name(), err)
 		}
