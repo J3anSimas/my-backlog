@@ -5,6 +5,7 @@ package backlog_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"my-backlog/internal/backlog"
@@ -16,12 +17,11 @@ import (
 
 func TestOracleRepository_Save_PersistsBacklog(t *testing.T) {
 	db := openTestDB(t)
-	runMigrations(t, db)
 
 	repo := backlog.NewOracleRepository(db)
 	svc := backlog.NewService(repo)
 
-	got, err := svc.Create("Integration Backlog", "Criado via teste de integração")
+	got, err := svc.Create(context.Background(), "Integration Backlog", "Criado via teste de integração")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -42,16 +42,15 @@ func TestOracleRepository_Save_PersistsBacklog(t *testing.T) {
 
 func TestOracleRepository_Save_GeneratesUniqueIDs(t *testing.T) {
 	db := openTestDB(t)
-	runMigrations(t, db)
 
 	repo := backlog.NewOracleRepository(db)
 	svc := backlog.NewService(repo)
 
-	a, errA := svc.Create("Backlog A", "Descrição A")
+	a, errA := svc.Create(context.Background(), "Backlog A", "Descrição A")
 	if errA != nil {
 		t.Fatalf("unexpected error on first create: %v", errA)
 	}
-	b, errB := svc.Create("Backlog B", "Descrição B")
+	b, errB := svc.Create(context.Background(), "Backlog B", "Descrição B")
 	if errB != nil {
 		t.Fatalf("unexpected error on second create: %v", errB)
 	}
@@ -66,26 +65,16 @@ func TestOracleRepository_Save_GeneratesUniqueIDs(t *testing.T) {
 
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	cfg := database.ConfigFromEnv()
-	if cfg.User == "" {
-		t.Skip("DB_USER not set — skipping integration test")
+	db, err := database.Connect(
+		database.WithConfig(database.ConfigFromEnv()),
+		database.WithMigrations(database.MigrationSourceFunc(database.LoadMigrations)),
+	)
+	if errors.Is(err, database.ErrNotConfigured) {
+		t.Skip("Oracle env vars não configurados — pulando teste de integração")
 	}
-	db, err := database.NewOracleDB(cfg)
 	if err != nil {
 		t.Fatalf("connecting to oracle: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
 	return db
-}
-
-func runMigrations(t *testing.T, db *sql.DB) {
-	t.Helper()
-	migrations, err := database.LoadMigrations()
-	if err != nil {
-		t.Fatalf("loading migrations: %v", err)
-	}
-	m := database.NewMigrator(db, migrations)
-	if err := m.Up(context.Background()); err != nil {
-		t.Fatalf("running migrations: %v", err)
-	}
 }
