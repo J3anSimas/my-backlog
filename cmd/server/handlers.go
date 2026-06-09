@@ -2,13 +2,10 @@ package main
 
 import (
 	"embed"
-	"encoding/json"
-	"errors"
 	"html/template"
 	"log"
 	"net/http"
 
-	"my-backlog/internal/apperrors"
 	"my-backlog/internal/session"
 	"my-backlog/internal/user"
 )
@@ -63,7 +60,7 @@ func postRegister(svc *user.Service, store session.Sessions) http.HandlerFunc {
 			r.FormValue("password"),
 		)
 		if err != nil {
-			writeRegisterError(w, err)
+			writeError(w, err)
 			return
 		}
 
@@ -104,7 +101,7 @@ func postLogin(svc *user.Service, store session.Sessions) http.HandlerFunc {
 
 		u, err := svc.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 		if err != nil {
-			writeLoginError(w, err)
+			writeError(w, err)
 			return
 		}
 
@@ -138,39 +135,3 @@ func getHome(store session.Sessions) http.HandlerFunc {
 	}
 }
 
-type errorResponse struct {
-	Field   string `json:"field,omitempty"`
-	Message string `json:"message"`
-}
-
-func writeLoginError(w http.ResponseWriter, err error) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var inputErr *apperrors.InputError
-	if errors.As(err, &inputErr) && inputErr.Kind == apperrors.KindUnauthorized {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(errorResponse{Message: inputErr.Message})
-		return
-	}
-
-	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(errorResponse{Message: "internal error"})
-}
-
-func writeRegisterError(w http.ResponseWriter, err error) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var inputErr *apperrors.InputError
-	if errors.As(err, &inputErr) {
-		status := http.StatusUnprocessableEntity
-		if inputErr.Kind == apperrors.KindConflict {
-			status = http.StatusConflict
-		}
-		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(errorResponse{Field: inputErr.Field, Message: inputErr.Message})
-		return
-	}
-
-	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(errorResponse{Message: "internal error"})
-}
