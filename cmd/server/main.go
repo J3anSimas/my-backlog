@@ -28,7 +28,7 @@ func main() {
 
 	userRepo := user.NewOracleRepository(db)
 	userSvc := user.NewService(userRepo, user.DefaultValidator())
-	sessionStore := session.NewStore()
+	sessionStore := session.NewMemoryStore()
 
 	addr := os.Getenv("ADDR")
 	if addr == "" {

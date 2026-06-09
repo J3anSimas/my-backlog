@@ -7,7 +7,7 @@ import (
 )
 
 func TestStore_NewAndGet_ReturnsSameUserID(t *testing.T) {
-	store := session.NewStore()
+	store := session.NewMemoryStore()
 
 	sid := store.New("user-42")
 
@@ -24,7 +24,7 @@ func TestStore_NewAndGet_ReturnsSameUserID(t *testing.T) {
 }
 
 func TestStore_Get_UnknownID_ReturnsFalse(t *testing.T) {
-	store := session.NewStore()
+	store := session.NewMemoryStore()
 
 	_, ok := store.Get("id-inexistente")
 
@@ -34,7 +34,7 @@ func TestStore_Get_UnknownID_ReturnsFalse(t *testing.T) {
 }
 
 func TestStore_Delete_RemovesSession(t *testing.T) {
-	store := session.NewStore()
+	store := session.NewMemoryStore()
 	sid := store.New("user-99")
 
 	store.Delete(sid)
@@ -46,7 +46,7 @@ func TestStore_Delete_RemovesSession(t *testing.T) {
 }
 
 func TestStore_New_EachCallReturnsDistinctID(t *testing.T) {
-	store := session.NewStore()
+	store := session.NewMemoryStore()
 
 	sid1 := store.New("user-1")
 	sid2 := store.New("user-2")

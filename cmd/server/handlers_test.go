@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"my-backlog/internal/session"
+	"my-backlog/internal/session/sessiontest"
 	"my-backlog/internal/user"
 	"my-backlog/internal/user/usertest"
 )
 
-func newTestServer() (*http.ServeMux, *usertest.FakeRepository, *session.Store) {
+func newTestServer() (*http.ServeMux, *usertest.FakeRepository, *sessiontest.FakeStore) {
 	repo := usertest.NewFakeRepository()
 	svc := user.NewService(repo, user.DefaultValidator())
-	store := session.NewStore()
+	store := sessiontest.NewFakeStore()
 	mux := buildMux(svc, store)
 	return mux, repo, store
 }

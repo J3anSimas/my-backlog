@@ -8,19 +8,27 @@ import (
 	"sync"
 )
 
-// Store mantém o mapa de session ID → userID em memória.
-type Store struct {
+// Sessions é a interface que os handlers usam para criar, consultar e remover sessões.
+// Qualquer implementação (MemoryStore, Redis, JWT) satisfaz esta interface.
+type Sessions interface {
+	New(userID string) string
+	Get(sid string) (userID string, ok bool)
+	Delete(sid string)
+}
+
+// MemoryStore mantém o mapa de session ID → userID em memória.
+type MemoryStore struct {
 	mu   sync.RWMutex
 	data map[string]string
 }
 
-// NewStore cria um Store vazio.
-func NewStore() *Store {
-	return &Store{data: make(map[string]string)}
+// NewMemoryStore cria um MemoryStore vazio.
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{data: make(map[string]string)}
 }
 
 // New cria uma nova sessão para o userID e retorna o session ID opaco.
-func (s *Store) New(userID string) string {
+func (s *MemoryStore) New(userID string) string {
 	sid := newSessionID()
 	s.mu.Lock()
 	s.data[sid] = userID
@@ -29,7 +37,7 @@ func (s *Store) New(userID string) string {
 }
 
 // Get retorna o userID associado ao sid, e false se a sessão não existir.
-func (s *Store) Get(sid string) (string, bool) {
+func (s *MemoryStore) Get(sid string) (string, bool) {
 	s.mu.RLock()
 	userID, ok := s.data[sid]
 	s.mu.RUnlock()
@@ -37,7 +45,7 @@ func (s *Store) Get(sid string) (string, bool) {
 }
 
 // Delete remove a sessão identificada por sid.
-func (s *Store) Delete(sid string) {
+func (s *MemoryStore) Delete(sid string) {
 	s.mu.Lock()
 	delete(s.data, sid)
 	s.mu.Unlock()

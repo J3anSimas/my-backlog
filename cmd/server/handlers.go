@@ -19,7 +19,7 @@ var templateFS embed.FS
 var tmpl = template.Must(template.ParseFS(templateFS, "templates/*.html"))
 
 // buildMux monta o ServeMux com todas as rotas da aplicação.
-func buildMux(svc *user.Service, store *session.Store) *http.ServeMux {
+func buildMux(svc *user.Service, store session.Sessions) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", getRoot(store))
 	mux.HandleFunc("GET /register", getRegister)
@@ -30,7 +30,7 @@ func buildMux(svc *user.Service, store *session.Store) *http.ServeMux {
 	return mux
 }
 
-func getRoot(store *session.Store) http.HandlerFunc {
+func getRoot(store session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("sid")
 		if err == nil {
@@ -50,7 +50,7 @@ func getRegister(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func postRegister(svc *user.Service, store *session.Store) http.HandlerFunc {
+func postRegister(svc *user.Service, store session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -79,7 +79,7 @@ func postRegister(svc *user.Service, store *session.Store) http.HandlerFunc {
 	}
 }
 
-func getLogin(store *session.Store) http.HandlerFunc {
+func getLogin(store session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("sid")
 		if err == nil {
@@ -95,7 +95,7 @@ func getLogin(store *session.Store) http.HandlerFunc {
 	}
 }
 
-func postLogin(svc *user.Service, store *session.Store) http.HandlerFunc {
+func postLogin(svc *user.Service, store session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -120,7 +120,7 @@ func postLogin(svc *user.Service, store *session.Store) http.HandlerFunc {
 	}
 }
 
-func getHome(store *session.Store) http.HandlerFunc {
+func getHome(store session.Sessions) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("sid")
 		if err != nil || cookie.Value == "" {
