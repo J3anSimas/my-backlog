@@ -1,4 +1,31 @@
-# my-backlog
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+# Rodar todos os testes (sem Oracle)
+go test ./...
+
+# Rodar um teste específico
+go test ./cmd/server/ -run TestRequireAuth_ValidSid
+go test ./internal/session/ -run TestStore_NewAndGet
+
+# Testes de integração (requer Oracle configurado via .env)
+go test ./... -tags integration
+
+# Build do servidor
+go build ./cmd/server/
+
+# Rodar o servidor (lê .env automaticamente)
+go run ./cmd/server/
+
+# Formatar código
+goimports -w .
+```
+
+O servidor escuta em `:8081` por padrão; sobrescreva com `ADDR=:3000`. Variáveis de conexão Oracle ficam em `.env` (veja `.env.example`): `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_SERVICE_NAME`, `DB_WALLET_PATH`.
 
 ## Code style
 
