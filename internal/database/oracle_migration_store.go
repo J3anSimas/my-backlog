@@ -18,35 +18,35 @@ func NewOracleMigrationStore(db *sql.DB) *OracleMigrationStore {
 	return &OracleMigrationStore{db: db}
 }
 
-// EnsureTracking cria a tabela schema_migrations se ainda não existir.
+// EnsureTracking cria a tabela mbl_schema_migrations se ainda não existir.
 func (s *OracleMigrationStore) EnsureTracking(ctx context.Context) error {
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM user_tables WHERE table_name = 'SCHEMA_MIGRATIONS'",
+		"SELECT COUNT(*) FROM user_tables WHERE table_name = 'MBL_SCHEMA_MIGRATIONS'",
 	).Scan(&count)
 	if err != nil {
-		return fmt.Errorf("checking schema_migrations table: %w", err)
+		return fmt.Errorf("checking mbl_schema_migrations table: %w", err)
 	}
 	if count > 0 {
 		return nil
 	}
 	_, err = s.db.ExecContext(ctx, `
-		CREATE TABLE schema_migrations (
+		CREATE TABLE mbl_schema_migrations (
 			version    NUMBER        NOT NULL,
 			name       VARCHAR2(255) NOT NULL,
 			applied_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-			CONSTRAINT pk_schema_migrations PRIMARY KEY (version)
+			CONSTRAINT pk_mbl_schema_migrations PRIMARY KEY (version)
 		)
 	`)
 	if err != nil {
-		return fmt.Errorf("creating schema_migrations table: %w", err)
+		return fmt.Errorf("creating mbl_schema_migrations table: %w", err)
 	}
 	return nil
 }
 
-// AppliedVersions retorna o conjunto de versões já registradas em schema_migrations.
+// AppliedVersions retorna o conjunto de versões já registradas em mbl_schema_migrations.
 func (s *OracleMigrationStore) AppliedVersions(ctx context.Context) (map[int]bool, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT version FROM schema_migrations")
+	rows, err := s.db.QueryContext(ctx, "SELECT version FROM mbl_schema_migrations")
 	if err != nil {
 		return nil, fmt.Errorf("querying applied migrations: %w", err)
 	}
@@ -81,7 +81,7 @@ func (s *OracleMigrationStore) Apply(ctx context.Context, m Migration) error {
 
 func (s *OracleMigrationStore) insertRecord(ctx context.Context, m Migration) error {
 	_, err := s.db.ExecContext(ctx,
-		"INSERT INTO schema_migrations (version, name) VALUES (:1, :2)",
+		"INSERT INTO mbl_schema_migrations (version, name) VALUES (:1, :2)",
 		m.Version, m.Name,
 	)
 	return err
@@ -89,7 +89,7 @@ func (s *OracleMigrationStore) insertRecord(ctx context.Context, m Migration) er
 
 func (s *OracleMigrationStore) deleteRecord(ctx context.Context, version int) error {
 	_, err := s.db.ExecContext(ctx,
-		"DELETE FROM schema_migrations WHERE version = :1",
+		"DELETE FROM mbl_schema_migrations WHERE version = :1",
 		version,
 	)
 	return err

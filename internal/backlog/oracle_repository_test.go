@@ -36,7 +36,7 @@ func TestOracleRepository_Save_PersistsBacklog(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		db.ExecContext(context.Background(), "DELETE FROM backlogs WHERE id = :1", got.ID)
+		db.ExecContext(context.Background(), "DELETE FROM mbl_backlogs WHERE id = :1", got.ID)
 	})
 }
 
@@ -59,7 +59,7 @@ func TestOracleRepository_Save_GeneratesUniqueIDs(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		db.ExecContext(context.Background(), "DELETE FROM backlogs WHERE id IN (:1, :2)", a.ID, b.ID)
+		db.ExecContext(context.Background(), "DELETE FROM mbl_backlogs WHERE id IN (:1, :2)", a.ID, b.ID)
 	})
 }
 

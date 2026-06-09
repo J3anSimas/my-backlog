@@ -33,7 +33,7 @@ func (r *OracleRepository) Save(ctx context.Context, u User) (User, error) {
 	u.ID = id
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO users (id, name, email, password_hash) VALUES (:1, :2, :3, :4)`,
+		`INSERT INTO mbl_users (id, name, email, password_hash) VALUES (:1, :2, :3, :4)`,
 		u.ID, u.Name, u.Email, u.PasswordHash,
 	)
 	if err != nil {
@@ -56,7 +56,7 @@ func newUUID() (string, error) {
 func (r *OracleRepository) EmailExists(ctx context.Context, email string) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE email = :1`, email,
+		`SELECT COUNT(*) FROM mbl_users WHERE email = :1`, email,
 	).Scan(&count)
 	if err != nil {
 		return false, &apperrors.InfraError{Op: fmt.Sprintf("email-exists (email=%q)", email), Cause: err}

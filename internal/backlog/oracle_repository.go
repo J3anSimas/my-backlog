@@ -31,7 +31,7 @@ func (r *OracleRepository) Save(ctx context.Context, b Backlog) (Backlog, error)
 	b.ID = id
 
 	_, err = r.db.ExecContext(ctx,
-		"INSERT INTO backlogs (id, title, description) VALUES (:1, :2, :3)",
+		"INSERT INTO mbl_backlogs (id, title, description) VALUES (:1, :2, :3)",
 		b.ID, b.Title, b.Description,
 	)
 	if err != nil {
