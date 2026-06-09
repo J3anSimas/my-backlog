@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Criar conta — My Backlog</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 2rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 1.5rem; color: #1a1a2e; }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-size: .85rem; font-weight: 600; color: #444; margin-bottom: .35rem; }
+    .input-wrap { position: relative; }
+    input {
+      width: 100%;
+      padding: .55rem .75rem;
+      border: 1.5px solid #cdd3db;
+      border-radius: 6px;
+      font-size: .95rem;
+      transition: border-color .15s;
+    }
+    input:focus { outline: none; border-color: #4f6ef7; }
+    input.error { border-color: #e53e3e; }
+    .toggle-pw {
+      position: absolute;
+      right: .6rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #888;
+      font-size: .8rem;
+      padding: .2rem .4rem;
+    }
+    .error-msg { color: #e53e3e; font-size: .8rem; margin-top: .3rem; }
+    .btn {
+      width: 100%;
+      padding: .65rem;
+      background: #4f6ef7;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: .5rem;
+      transition: opacity .15s;
+    }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .global-error {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 6px;
+      padding: .6rem .85rem;
+      color: #c53030;
+      font-size: .87rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card"
+       x-data="registerForm()"
+       x-init="init()">
+
+    <h1>Criar conta</h1>
+
+    <div class="global-error" x-show="globalError" x-text="globalError" style="display:none"></div>
+
+    <form @submit.prevent="submit">
+
+      <div class="field">
+        <label for="name">Nome</label>
+        <input id="name" type="text" name="name"
+               x-model="fields.name"
+               :class="{ error: errors.name }"
+               autocomplete="name" />
+        <p class="error-msg" x-show="errors.name" x-text="errors.name" style="display:none"></p>
+      </div>
+
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" type="email" name="email"
+               x-model="fields.email"
+               :class="{ error: errors.email }"
+               autocomplete="email" />
+        <p class="error-msg" x-show="errors.email" x-text="errors.email" style="display:none"></p>
+      </div>
+
+      <div class="field">
+        <label for="password">Senha</label>
+        <div class="input-wrap">
+          <input id="password" :type="showPw ? 'text' : 'password'" name="password"
+                 x-model="fields.password"
+                 :class="{ error: errors.password }"
+                 autocomplete="new-password" />
+          <button type="button" class="toggle-pw" @click="showPw = !showPw"
+                  :aria-label="showPw ? 'Ocultar senha' : 'Mostrar senha'">
+            <span x-text="showPw ? 'ocultar' : 'mostrar'"></span>
+          </button>
+        </div>
+        <p class="error-msg" x-show="errors.password" x-text="errors.password" style="display:none"></p>
+      </div>
+
+      <button type="submit" class="btn" :disabled="loading">
+        <span x-show="!loading">Criar conta</span>
+        <span x-show="loading" style="display:none">Aguarde…</span>
+      </button>
+
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
+  <script>
+    function registerForm() {
+      return {
+        fields:      { name: '', email: '', password: '' },
+        errors:      {},
+        globalError: '',
+        loading:     false,
+        showPw:      false,
+
+        init() {},
+
+        async submit() {
+          this.errors      = {};
+          this.globalError = '';
+          this.loading     = true;
+
+          try {
+            const body = new URLSearchParams(this.fields);
+            const res  = await fetch('/register', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body:    body.toString(),
+            });
+
+            if (res.redirected) {
+              window.location.href = res.url;
+              return;
+            }
+            if (res.status === 303) {
+              window.location.href = res.headers.get('Location') || '/home';
+              return;
+            }
+            if (res.status === 422 || res.status === 409) {
+              const data = await res.json();
+              if (data.field) {
+                this.errors[data.field] = data.message;
+              } else {
+                this.globalError = data.message || 'Erro ao criar conta.';
+              }
+              return;
+            }
+            this.globalError = 'Erro inesperado. Tente novamente.';
+          } catch {
+            this.globalError = 'Falha de conexão. Tente novamente.';
+          } finally {
+            this.loading = false;
+          }
+        },
+      };
+    }
+  </script>
+</body>
+</html>
