@@ -1,0 +1,10 @@
+# Binários Go
+/bin/
+*.exe
+
+# Wallet Oracle — nunca versionar credenciais
+wallet/
+
+# Variáveis de ambiente locais
+.env
+.env.*
