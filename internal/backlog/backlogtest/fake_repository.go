@@ -3,6 +3,7 @@
 package backlogtest
 
 import (
+	"context"
 	"fmt"
 
 	"my-backlog/internal/backlog"
@@ -25,8 +26,12 @@ func (f *FakeRepository) FailWith(err error) {
 	f.failOnce = err
 }
 
-// Save implementa backlog.Repository. Retorna erro one-shot se FailWith foi chamado.
-func (f *FakeRepository) Save(b backlog.Backlog) (backlog.Backlog, error) {
+// Save implementa backlog.Repository. Retorna ctx.Err() se o contexto foi cancelado,
+// ou erro one-shot se FailWith foi chamado.
+func (f *FakeRepository) Save(ctx context.Context, b backlog.Backlog) (backlog.Backlog, error) {
+	if ctx.Err() != nil {
+		return backlog.Backlog{}, ctx.Err()
+	}
 	if f.failOnce != nil {
 		err := f.failOnce
 		f.failOnce = nil

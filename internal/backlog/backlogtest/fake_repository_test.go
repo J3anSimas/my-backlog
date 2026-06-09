@@ -1,6 +1,7 @@
 package backlogtest_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,11 +12,11 @@ import (
 func TestFakeRepository_Save_AssignsSequentialIDs(t *testing.T) {
 	repo := backlogtest.NewFakeRepository()
 
-	first, err := repo.Save(backlog.Backlog{Title: "A", Description: "desc"})
+	first, err := repo.Save(context.Background(), backlog.Backlog{Title: "A", Description: "desc"})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
-	second, err := repo.Save(backlog.Backlog{Title: "B", Description: "desc"})
+	second, err := repo.Save(context.Background(), backlog.Backlog{Title: "B", Description: "desc"})
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -34,8 +35,8 @@ func TestFakeRepository_Save_AssignsSequentialIDs(t *testing.T) {
 func TestFakeRepository_Saved_ReturnsCopyOfPersistedBacklogs(t *testing.T) {
 	repo := backlogtest.NewFakeRepository()
 
-	repo.Save(backlog.Backlog{Title: "A", Description: "desc A"}) //nolint:errcheck
-	repo.Save(backlog.Backlog{Title: "B", Description: "desc B"}) //nolint:errcheck
+	repo.Save(context.Background(), backlog.Backlog{Title: "A", Description: "desc A"}) //nolint:errcheck
+	repo.Save(context.Background(), backlog.Backlog{Title: "B", Description: "desc B"}) //nolint:errcheck
 
 	saved := repo.Saved()
 	if len(saved) != 2 {
@@ -62,8 +63,8 @@ func TestFakeRepository_SaveCount_ReflectsSuccessfulSaves(t *testing.T) {
 		t.Fatalf("esperado 0 antes de qualquer Save, obtido %d", repo.SaveCount())
 	}
 
-	repo.Save(backlog.Backlog{Title: "A", Description: "desc"}) //nolint:errcheck
-	repo.Save(backlog.Backlog{Title: "B", Description: "desc"}) //nolint:errcheck
+	repo.Save(context.Background(), backlog.Backlog{Title: "A", Description: "desc"}) //nolint:errcheck
+	repo.Save(context.Background(), backlog.Backlog{Title: "B", Description: "desc"}) //nolint:errcheck
 
 	if repo.SaveCount() != 2 {
 		t.Errorf("esperado 2 após dois saves, obtido %d", repo.SaveCount())
@@ -76,7 +77,7 @@ func TestFakeRepository_FailWith_ReturnsErrorOnNextSaveOnly(t *testing.T) {
 
 	repo.FailWith(dbErr)
 
-	_, err := repo.Save(backlog.Backlog{Title: "X", Description: "desc"})
+	_, err := repo.Save(context.Background(), backlog.Backlog{Title: "X", Description: "desc"})
 	if !errors.Is(err, dbErr) {
 		t.Fatalf("esperado %v, obtido %v", dbErr, err)
 	}
@@ -85,7 +86,7 @@ func TestFakeRepository_FailWith_ReturnsErrorOnNextSaveOnly(t *testing.T) {
 	}
 
 	// one-shot: a chamada seguinte deve ter sucesso
-	_, err = repo.Save(backlog.Backlog{Title: "Y", Description: "desc"})
+	_, err = repo.Save(context.Background(), backlog.Backlog{Title: "Y", Description: "desc"})
 	if err != nil {
 		t.Errorf("segundo Save deve ter sucesso após one-shot, obtido: %v", err)
 	}

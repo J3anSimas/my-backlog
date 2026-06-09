@@ -1,6 +1,8 @@
 package backlog_test
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -18,7 +20,7 @@ func newService() (*backlog.Service, *backlogtest.FakeRepository) {
 func TestService_Create_ReturnsBacklogWithTitleDescriptionAndID(t *testing.T) {
 	svc, _ := newService()
 
-	got, err := svc.Create("Meu Backlog", "Descrição do backlog de produto")
+	got, err := svc.Create(context.Background(), "Meu Backlog", "Descrição do backlog de produto")
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -36,7 +38,7 @@ func TestService_Create_ReturnsBacklogWithTitleDescriptionAndID(t *testing.T) {
 func TestService_Create_PersistsBacklogInRepository(t *testing.T) {
 	svc, repo := newService()
 
-	_, err := svc.Create("Backlog A", "Descrição A")
+	_, err := svc.Create(context.Background(), "Backlog A", "Descrição A")
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
@@ -50,7 +52,7 @@ func TestService_Create_PersistsBacklogInRepository(t *testing.T) {
 func TestService_Create_EmptyTitle_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
-	_, err := svc.Create("", "Descrição válida")
+	_, err := svc.Create(context.Background(), "", "Descrição válida")
 	if err == nil {
 		t.Fatal("esperado erro para título vazio, obtido nil")
 	}
@@ -62,7 +64,7 @@ func TestService_Create_EmptyTitle_ReturnsError(t *testing.T) {
 func TestService_Create_WhitespaceOnlyTitle_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
-	_, err := svc.Create("   ", "Descrição válida")
+	_, err := svc.Create(context.Background(), "   ", "Descrição válida")
 	if err == nil {
 		t.Fatal("esperado erro para título apenas com espaços, obtido nil")
 	}
@@ -75,7 +77,7 @@ func TestService_Create_TitleExceedsMaxLength_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
 	longTitle := strings.Repeat("a", 201)
-	_, err := svc.Create(longTitle, "Descrição válida")
+	_, err := svc.Create(context.Background(), longTitle, "Descrição válida")
 	if err == nil {
 		t.Fatal("esperado erro para título acima de 200 caracteres, obtido nil")
 	}
@@ -89,7 +91,7 @@ func TestService_Create_TitleExceedsMaxLength_ReturnsError(t *testing.T) {
 func TestService_Create_EmptyDescription_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
-	_, err := svc.Create("Título válido", "")
+	_, err := svc.Create(context.Background(), "Título válido", "")
 	if err == nil {
 		t.Fatal("esperado erro para descrição vazia, obtido nil")
 	}
@@ -102,11 +104,41 @@ func TestService_Create_DescriptionExceedsMaxLength_ReturnsError(t *testing.T) {
 	svc, _ := newService()
 
 	longDesc := strings.Repeat("a", 1001)
-	_, err := svc.Create("Título válido", longDesc)
+	_, err := svc.Create(context.Background(), "Título válido", longDesc)
 	if err == nil {
 		t.Fatal("esperado erro para descrição acima de 1000 caracteres, obtido nil")
 	}
 	if !strings.Contains(err.Error(), "description") {
 		t.Errorf("mensagem de erro deve mencionar 'description', obtido: %q", err.Error())
+	}
+}
+
+func TestService_Create_RepositoryFails_PropagatesInfraError(t *testing.T) {
+	svc, repo := newService()
+	repoErr := &backlog.InfraError{Op: "db-insert", Cause: errors.New("connection refused")}
+	repo.FailWith(repoErr)
+
+	_, err := svc.Create(context.Background(), "Título válido", "Descrição válida")
+
+	var infraErr *backlog.InfraError
+	if !errors.As(err, &infraErr) {
+		t.Fatalf("esperado *backlog.InfraError, obtido %T: %v", err, err)
+	}
+	if infraErr.Op != "db-insert" {
+		t.Errorf("esperado Op=%q, obtido %q", "db-insert", infraErr.Op)
+	}
+	if !errors.Is(err, repoErr.Cause) {
+		t.Errorf("esperado que Cause fosse acessível via errors.Is, obtido %v", err)
+	}
+}
+
+func TestService_Create_CancelledContext_ReturnsContextError(t *testing.T) {
+	svc, _ := newService()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := svc.Create(ctx, "Backlog", "Descrição válida")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("esperado context.Canceled, obtido %v", err)
 	}
 }

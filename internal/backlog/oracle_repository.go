@@ -23,19 +23,19 @@ func NewOracleRepository(db *sql.DB) *OracleRepository {
 }
 
 // Save persiste um Backlog no Oracle e retorna o registro com ID preenchido.
-func (r *OracleRepository) Save(b Backlog) (Backlog, error) {
+func (r *OracleRepository) Save(ctx context.Context, b Backlog) (Backlog, error) {
 	id, err := newUUID()
 	if err != nil {
-		return Backlog{}, fmt.Errorf("generating backlog id: %w", err)
+		return Backlog{}, &InfraError{Op: "generate-id", Cause: err}
 	}
 	b.ID = id
 
-	_, err = r.db.ExecContext(context.Background(),
+	_, err = r.db.ExecContext(ctx,
 		"INSERT INTO backlogs (id, title, description) VALUES (:1, :2, :3)",
 		b.ID, b.Title, b.Description,
 	)
 	if err != nil {
-		return Backlog{}, fmt.Errorf("inserting backlog (title=%q): %w", b.Title, err)
+		return Backlog{}, &InfraError{Op: fmt.Sprintf("db-insert (title=%q)", b.Title), Cause: err}
 	}
 	return b, nil
 }
