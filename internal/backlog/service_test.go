@@ -1,28 +1,15 @@
 package backlog_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"my-backlog/internal/backlog"
+	"my-backlog/internal/backlog/backlogtest"
 )
 
-// fakeRepository é um fake em memória que atribui IDs sequenciais.
-type fakeRepository struct {
-	saved  []backlog.Backlog
-	nextID int
-}
-
-func (f *fakeRepository) Save(b backlog.Backlog) (backlog.Backlog, error) {
-	f.nextID++
-	b.ID = fmt.Sprintf("%d", f.nextID)
-	f.saved = append(f.saved, b)
-	return b, nil
-}
-
-func newService() (*backlog.Service, *fakeRepository) {
-	repo := &fakeRepository{}
+func newService() (*backlog.Service, *backlogtest.FakeRepository) {
+	repo := backlogtest.NewFakeRepository()
 	return backlog.NewService(repo), repo
 }
 
@@ -53,8 +40,8 @@ func TestService_Create_PersistsBacklogInRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("erro inesperado: %v", err)
 	}
-	if len(repo.saved) != 1 {
-		t.Errorf("esperado 1 backlog salvo, obtido %d", len(repo.saved))
+	if repo.SaveCount() != 1 {
+		t.Errorf("esperado 1 backlog salvo, obtido %d", repo.SaveCount())
 	}
 }
 
