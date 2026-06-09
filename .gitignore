@@ -8,3 +8,4 @@ wallet/
 # Variáveis de ambiente locais
 .env
 .env.*
+!.env.example
